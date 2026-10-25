@@ -1,0 +1,19 @@
+# Gradle / Android
+.gradle/
+.kotlin/
+build/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# Backups e dados de teste: podem ter fotos e dados da loja, não publique!
+*.zip
+codigo-de-barras-teste.png
+teste/
