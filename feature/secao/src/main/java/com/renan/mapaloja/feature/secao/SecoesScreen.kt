@@ -63,7 +63,7 @@ internal fun SecoesScreen(nav: NavController) {
                     leadingContent = { Miniatura(item.secao.fotoPath?.let { Fotos.arquivo(ctx, it) }) },
                     headlineContent = { Text(item.secao.nome, fontWeight = FontWeight.SemiBold) },
                     supportingContent = {
-                        Text(listOf(item.secao.localizacao, "${item.total} produtos").filter { it.isNotBlank() }.joinToString(" • "))
+                        Text(listOf(item.secao.localizacao, if (item.total == 1) "1 produto" else "${item.total} produtos").filter { it.isNotBlank() }.joinToString(" • "))
                     },
                 )
                 HorizontalDivider()

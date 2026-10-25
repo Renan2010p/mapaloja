@@ -5,13 +5,18 @@ package com.renan.mapaloja.feature.busca
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -44,7 +49,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,11 +60,14 @@ import androidx.navigation.NavController
 import com.renan.mapaloja.core.data.backup.Backup
 import com.renan.mapaloja.core.data.db.AppDatabase
 import com.renan.mapaloja.core.data.fotos.Fotos
-import com.renan.mapaloja.core.data.model.Produto
+import com.renan.mapaloja.core.data.importacao.ImportarCsv
 import com.renan.mapaloja.core.data.model.normalizarCodigo
 import com.renan.mapaloja.core.data.model.textoLocal
+import com.renan.mapaloja.core.data.preferencias.Preferencias
 import com.renan.mapaloja.core.ui.aviso
+import com.renan.mapaloja.core.ui.componentes.Miniatura
 import com.renan.mapaloja.core.ui.componentes.TelaBase
+import com.renan.mapaloja.core.ui.icones.IconesMapa
 import com.renan.mapaloja.core.ui.leitor.lerCodigo
 import com.renan.mapaloja.core.ui.navegacao.Rotas
 import kotlinx.coroutines.flow.flowOf
@@ -76,7 +86,9 @@ internal fun BuscaScreen(nav: NavController) {
     var menuAberto by remember { mutableStateOf(false) }
     var importarDe by remember { mutableStateOf<Uri?>(null) }
 
+    val nomeLoja by remember { Preferencias.get(ctx).nomeLoja }.collectAsStateWithLifecycle()
     val total by db.produtos().contar().collectAsStateWithLifecycle(0)
+    val etiquetas by remember { db.produtos().contarEtiquetas() }.collectAsStateWithLifecycle(0)
     val totalSecoes by remember { db.secoes().observarTodas().map { it.size } }.collectAsStateWithLifecycle(0)
     val resultados by remember(texto) {
         val t = texto.trim()
@@ -93,6 +105,13 @@ internal fun BuscaScreen(nav: NavController) {
     val importar = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         importarDe = uri
     }
+    val importarPlanilha = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            runCatching { ImportarCsv.importar(ctx, uri) }
+                .onSuccess { ctx.aviso("Planilha: ${it.novos} novos, ${it.atualizados} atualizados, ${it.ignorados} ignorados") }
+                .onFailure { ctx.aviso("Erro ao ler a planilha: ${it.message}") }
+        }
+    }
 
     fun bipar() = lerCodigo(ctx) { lido ->
         scope.launch {
@@ -104,7 +123,7 @@ internal fun BuscaScreen(nav: NavController) {
     }
 
     TelaBase(
-        titulo = "Mapa da Loja",
+        titulo = nomeLoja.ifBlank { "Mapa da Loja" },
         acoes = {
             IconButton(onClick = { menuAberto = true }) { Icon(Icons.Default.MoreVert, "Menu") }
             DropdownMenu(expanded = menuAberto, onDismissRequest = { menuAberto = false }) {
@@ -115,6 +134,15 @@ internal fun BuscaScreen(nav: NavController) {
                 DropdownMenuItem(text = { Text("Restaurar backup") }, onClick = {
                     menuAberto = false
                     importar.launch(arrayOf("application/zip", "application/octet-stream"))
+                })
+                DropdownMenuItem(text = { Text("Importar planilha (CSV)") }, onClick = {
+                    menuAberto = false
+                    importarPlanilha.launch(arrayOf("text/*", "application/vnd.ms-excel", "application/octet-stream"))
+                })
+                HorizontalDivider()
+                DropdownMenuItem(text = { Text("Sobre e créditos") }, onClick = {
+                    menuAberto = false
+                    nav.navigate(Rotas.SOBRE)
                 })
             }
         },
@@ -135,9 +163,16 @@ internal fun BuscaScreen(nav: NavController) {
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
-                Column(Modifier.padding(horizontal = 24.dp, vertical = 22.dp)) {
-                    Text("Bipar produto", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Aponte a câmera para o código de barras", style = MaterialTheme.typography.bodyMedium)
+                Row(
+                    Modifier.padding(horizontal = 24.dp, vertical = 22.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(IconesMapa.Bipar, null, Modifier.size(44.dp))
+                    Spacer(Modifier.width(18.dp))
+                    Column {
+                        Text("Bipar produto", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("Aponte a câmera para o código de barras", style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
 
@@ -163,8 +198,13 @@ internal fun BuscaScreen(nav: NavController) {
                     Numero("Produtos", total, Modifier.weight(1f))
                     Numero("Seções", totalSecoes, Modifier.weight(1f))
                 }
-                Atalho("Seções da loja", "Fotos das gôndolas e modo mapeamento") { nav.navigate(Rotas.SECOES) }
-                Atalho("Novo produto", "Cadastrar sem bipar") { nav.navigate(Rotas.produtoEditar()) }
+                Atalho(
+                    IconesMapa.Etiqueta,
+                    "Trocar etiquetas",
+                    if (etiquetas == 0) "Bipe os produtos que mudaram de preço" else "$etiquetas na lista, em ordem pela loja",
+                ) { nav.navigate(Rotas.ETIQUETAS) }
+                Atalho(IconesMapa.Estante, "Seções da loja", "Fotos das gôndolas e modo mapeamento") { nav.navigate(Rotas.SECOES) }
+                Atalho(IconesMapa.NovoProduto, "Novo produto", "Cadastrar sem bipar") { nav.navigate(Rotas.produtoEditar()) }
             } else if (resultados.isEmpty()) {
                 Text("Nada encontrado para \"${texto.trim()}\".")
                 OutlinedButton(onClick = {
@@ -177,6 +217,7 @@ internal fun BuscaScreen(nav: NavController) {
                     items(resultados, key = { it.produto.id }) { r ->
                         ListItem(
                             modifier = Modifier.clickable { nav.navigate(Rotas.produto(r.produto.id)) },
+                            leadingContent = r.produto.fotoPath?.let { foto -> { Miniatura(Fotos.arquivo(ctx, foto), 48.dp) } },
                             headlineContent = { Text(r.produto.titulo(), fontWeight = FontWeight.SemiBold) },
                             supportingContent = {
                                 Text(textoLocal(r.secaoNome, r.secaoLocalizacao, r.produto.prateleira))
@@ -238,13 +279,18 @@ private fun Numero(rotulo: String, valor: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Atalho(titulo: String, descricao: String, onClick: () -> Unit) {
+private fun Atalho(icone: ImageVector, titulo: String, descricao: String, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(44.dp).clip(MaterialTheme.shapes.small).background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) { Icon(icone, null, tint = MaterialTheme.colorScheme.primary) }
+            Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(descricao, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

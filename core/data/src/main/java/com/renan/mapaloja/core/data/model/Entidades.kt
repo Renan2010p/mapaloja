@@ -2,6 +2,7 @@
 
 package com.renan.mapaloja.core.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -17,6 +18,8 @@ data class Secao(
     val localizacao: String = "",
     /** Nome do arquivo da foto dentro da pasta de fotos do app. */
     val fotoPath: String? = null,
+    /** Quantas prateleiras a gôndola tem (dá pra aumentar no botão +). */
+    @ColumnInfo(defaultValue = "5") val prateleiras: Int = 5,
 )
 
 @Entity(
@@ -48,6 +51,10 @@ data class Produto(
     val posY: Float? = null,
     val observacao: String = "",
     val atualizadoEm: Long = System.currentTimeMillis(),
+    /** Marcado para trocar a etiqueta de preço (ex: entrou ou saiu de promoção). */
+    @ColumnInfo(defaultValue = "0") val trocarEtiqueta: Boolean = false,
+    /** Foto do próprio produto (nome do arquivo na pasta de fotos). */
+    val fotoPath: String? = null,
 ) {
     fun titulo(): String = nome.ifBlank { codigoInterno ?: codigoBarras ?: "Produto sem nome" }
 }

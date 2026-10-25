@@ -12,4 +12,5 @@ android {
 dependencies {
     implementation(project(":core:data"))
     implementation(libs.play.services.code.scanner)
+    implementation(libs.androidx.activity.compose)
 }

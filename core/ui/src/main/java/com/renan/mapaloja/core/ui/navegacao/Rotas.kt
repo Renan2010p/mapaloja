@@ -9,7 +9,10 @@ import android.net.Uri
  * possa abrir a tela de outro módulo sem depender dele.
  */
 object Rotas {
+    const val BOAS_VINDAS = "boasVindas"
     const val BUSCA = "busca"
+    const val ETIQUETAS = "etiquetas"
+    const val SOBRE = "sobre"
 
     const val PRODUTO = "produto/{id}"
     fun produto(id: Long) = "produto/$id"

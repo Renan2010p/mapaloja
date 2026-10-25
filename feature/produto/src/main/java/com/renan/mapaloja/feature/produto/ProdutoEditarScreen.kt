@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,10 +47,13 @@ import com.renan.mapaloja.core.data.fotos.Fotos
 import com.renan.mapaloja.core.data.model.Produto
 import com.renan.mapaloja.core.data.model.normalizarCodigo
 import com.renan.mapaloja.core.ui.aviso
+import com.renan.mapaloja.core.ui.componentes.BotoesFoto
 import com.renan.mapaloja.core.ui.componentes.FotoComMarcadores
 import com.renan.mapaloja.core.ui.componentes.Marcador
+import com.renan.mapaloja.core.ui.componentes.Miniatura
 import com.renan.mapaloja.core.ui.componentes.SeletorPrateleira
 import com.renan.mapaloja.core.ui.componentes.TelaBase
+import com.renan.mapaloja.core.ui.icones.IconesMapa
 import com.renan.mapaloja.core.ui.leitor.lerCodigo
 import com.renan.mapaloja.core.ui.navegacao.Rotas
 import kotlinx.coroutines.launch
@@ -70,6 +74,8 @@ internal fun ProdutoEditarScreen(nav: NavController, id: Long, eanInicial: Strin
     var posX by rememberSaveable { mutableStateOf<Float?>(null) }
     var posY by rememberSaveable { mutableStateOf<Float?>(null) }
     var obs by rememberSaveable { mutableStateOf("") }
+    var foto by rememberSaveable { mutableStateOf<String?>(null) }
+    var fotoOriginal by rememberSaveable { mutableStateOf<String?>(null) }
     var erro by remember { mutableStateOf<String?>(null) }
     var confirmarExclusao by remember { mutableStateOf(false) }
     var menuSecao by remember { mutableStateOf(false) }
@@ -85,8 +91,16 @@ internal fun ProdutoEditarScreen(nav: NavController, id: Long, eanInicial: Strin
             posX = p.posX
             posY = p.posY
             obs = p.observacao
+            foto = p.fotoPath
+            fotoOriginal = p.fotoPath
         }
         carregado = true
+    }
+
+    fun novaFoto(nome: String?) {
+        // Uma foto escolhida antes nesta mesma tela e não salva pode ir embora
+        foto?.takeIf { it != fotoOriginal }?.let { Fotos.arquivo(ctx, it).delete() }
+        foto = nome
     }
 
     fun salvar() = scope.launch {
@@ -103,8 +117,9 @@ internal fun ProdutoEditarScreen(nav: NavController, id: Long, eanInicial: Strin
                 return@launch
             }
         }
-        val produto = Produto(
-            id = id,
+        // Parte do produto salvo para não perder o que esta tela não edita (ex: lista de etiquetas)
+        val base = db.produtos().porId(id) ?: Produto()
+        val produto = base.copy(
             codigoBarras = eanFinal,
             codigoInterno = codigoFinal,
             nome = nome.trim(),
@@ -113,7 +128,10 @@ internal fun ProdutoEditarScreen(nav: NavController, id: Long, eanInicial: Strin
             posX = posX,
             posY = posY,
             observacao = obs.trim(),
+            fotoPath = foto,
+            atualizadoEm = System.currentTimeMillis(),
         )
+        fotoOriginal?.takeIf { it != foto }?.let { Fotos.arquivo(ctx, it).delete() }
         if (id == 0L) db.produtos().inserir(produto) else db.produtos().atualizar(produto)
         ctx.aviso("Salvo!")
         nav.popBackStack()
@@ -145,7 +163,7 @@ internal fun ProdutoEditarScreen(nav: NavController, id: Long, eanInicial: Strin
                     modifier = Modifier.weight(1f),
                 )
                 OutlinedButton(onClick = { lerCodigo(ctx) { ean = normalizarCodigo(it) } }, Modifier.height(64.dp)) {
-                    Text("📷")
+                    Icon(IconesMapa.Bipar, contentDescription = "Ler código de barras")
                 }
             }
             OutlinedTextField(
@@ -161,6 +179,15 @@ internal fun ProdutoEditarScreen(nav: NavController, id: Long, eanInicial: Strin
                 label = { Text("Nome") },
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Text("Foto do produto (opcional)")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Miniatura(Fotos.arquivoOuNulo(ctx, foto), 88.dp)
+                Column(Modifier.weight(1f)) {
+                    BotoesFoto(temFoto = foto != null, onFoto = ::novaFoto)
+                    if (foto != null) TextButton(onClick = { novaFoto(null) }) { Text("Tirar a foto") }
+                }
+            }
 
             ExposedDropdownMenuBox(expanded = menuSecao, onExpandedChange = { menuSecao = it }) {
                 OutlinedTextField(
@@ -185,10 +212,22 @@ internal fun ProdutoEditarScreen(nav: NavController, id: Long, eanInicial: Strin
                 }
             }
 
-            Text("Prateleira (1 = a mais alta)")
-            SeletorPrateleira(prateleira, { prateleira = it }, permitirNenhuma = true)
-
             val secao = secoes.firstOrNull { it.id == secaoId }
+            Text("Prateleira (1 = a mais alta)")
+            SeletorPrateleira(
+                valor = prateleira,
+                onMudar = { prateleira = it },
+                quantidade = secao?.prateleiras ?: 5,
+                onAdicionar = secao?.let { s ->
+                    {
+                        val nova = s.prateleiras + 1
+                        scope.launch { db.secoes().atualizar(s.copy(prateleiras = nova)) }
+                        prateleira = nova
+                    }
+                },
+                permitirNenhuma = true,
+            )
+
             if (secao != null) {
                 Text(
                     if (secao.fotoPath == null) "Essa seção ainda não tem foto."
@@ -224,7 +263,10 @@ internal fun ProdutoEditarScreen(nav: NavController, id: Long, eanInicial: Strin
                 TextButton(onClick = {
                     confirmarExclusao = false
                     scope.launch {
-                        db.produtos().porId(id)?.let { db.produtos().excluir(it) }
+                        db.produtos().porId(id)?.let {
+                            db.produtos().excluir(it)
+                            it.fotoPath?.let { f -> Fotos.arquivo(ctx, f).delete() }
+                        }
                         nav.popBackStack()
                         // Se veio da tela "Onde está", ela também sai (o produto não existe mais)
                         if (nav.currentDestination?.route == Rotas.PRODUTO) nav.popBackStack()

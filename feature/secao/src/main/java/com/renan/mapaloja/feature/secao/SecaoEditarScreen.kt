@@ -2,10 +2,9 @@
 
 package com.renan.mapaloja.feature.secao
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,13 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,20 +30,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.renan.mapaloja.core.data.db.AppDatabase
 import com.renan.mapaloja.core.data.fotos.Fotos
 import com.renan.mapaloja.core.data.model.Secao
+import com.renan.mapaloja.core.ui.componentes.BotoesFoto
 import com.renan.mapaloja.core.ui.componentes.FotoComMarcadores
 import com.renan.mapaloja.core.ui.componentes.TelaBase
 import com.renan.mapaloja.core.ui.navegacao.Rotas
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
 
 @Composable
 internal fun SecaoEditarScreen(nav: NavController, id: Long) {
@@ -57,7 +56,7 @@ internal fun SecaoEditarScreen(nav: NavController, id: Long) {
     var localizacao by rememberSaveable { mutableStateOf("") }
     var foto by rememberSaveable { mutableStateOf<String?>(null) }
     var fotoOriginal by rememberSaveable { mutableStateOf<String?>(null) }
-    var fotoTirando by rememberSaveable { mutableStateOf<String?>(null) }
+    var prateleiras by rememberSaveable { mutableStateOf(5) }
     var erro by remember { mutableStateOf<String?>(null) }
     var confirmarExclusao by remember { mutableStateOf(false) }
 
@@ -68,29 +67,15 @@ internal fun SecaoEditarScreen(nav: NavController, id: Long) {
             localizacao = it.localizacao
             foto = it.fotoPath
             fotoOriginal = it.fotoPath
+            prateleiras = it.prateleiras
         }
         carregado = true
     }
 
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        val arquivo = fotoTirando?.let { Fotos.arquivo(ctx, it) } ?: return@rememberLauncherForActivityResult
-        fotoTirando = null
-        if (ok && arquivo.length() > 0) {
-            scope.launch {
-                withContext(Dispatchers.IO) { Fotos.reduzir(arquivo) }
-                // Uma foto nova tirada antes nesta mesma tela e não salva pode ir embora
-                foto?.takeIf { it != fotoOriginal }?.let { Fotos.arquivo(ctx, it).delete() }
-                foto = arquivo.name
-            }
-        } else {
-            arquivo.delete()
-        }
-    }
-
-    fun tirarFoto() {
-        val arquivo: File = Fotos.novoArquivo(ctx)
-        fotoTirando = arquivo.name
-        camera.launch(Fotos.uri(ctx, arquivo))
+    fun novaFoto(nome: String) {
+        // Uma foto nova escolhida antes nesta mesma tela e não salva pode ir embora
+        foto?.takeIf { it != fotoOriginal }?.let { Fotos.arquivo(ctx, it).delete() }
+        foto = nome
     }
 
     fun salvar() = scope.launch {
@@ -98,7 +83,8 @@ internal fun SecaoEditarScreen(nav: NavController, id: Long) {
             erro = "Dê um nome para a seção."
             return@launch
         }
-        val secao = Secao(id = id, nome = nome.trim(), localizacao = localizacao.trim(), fotoPath = foto)
+        val base = db.secoes().porId(id) ?: Secao(nome = "")
+        val secao = base.copy(nome = nome.trim(), localizacao = localizacao.trim(), fotoPath = foto, prateleiras = prateleiras)
         if (fotoOriginal != null && fotoOriginal != foto) Fotos.arquivo(ctx, fotoOriginal!!).delete()
         if (id == 0L) {
             val novoId = db.secoes().inserir(secao)
@@ -140,13 +126,18 @@ internal fun SecaoEditarScreen(nav: NavController, id: Long) {
             )
 
             FotoComMarcadores(arquivo = foto?.let { Fotos.arquivo(ctx, it) }, marcadores = emptyList())
-            OutlinedButton(onClick = { tirarFoto() }, Modifier.fillMaxWidth().height(56.dp)) {
-                Text(if (foto == null) "📷  Tirar foto da seção" else "📷  Tirar outra foto")
-            }
+            BotoesFoto(temFoto = foto != null, onFoto = ::novaFoto)
             Text(
                 "Dica: fotografe a gôndola inteira de frente, com boa luz, pra dar pra ver as prateleiras.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Prateleiras na gôndola", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                IconButton(onClick = { if (prateleiras > 1) prateleiras-- }) { Text("−", style = MaterialTheme.typography.headlineSmall) }
+                Text("$prateleiras", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                IconButton(onClick = { if (prateleiras < 30) prateleiras++ }) { Icon(Icons.Default.Add, "Mais uma prateleira") }
+            }
 
             erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(onClick = { salvar() }, Modifier.fillMaxWidth().height(56.dp)) { Text("Salvar") }

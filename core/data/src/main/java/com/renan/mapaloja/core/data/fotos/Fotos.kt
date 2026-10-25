@@ -17,8 +17,26 @@ object Fotos {
 
     fun arquivo(context: Context, nome: String): File = File(pasta(context), nome)
 
+    fun arquivoOuNulo(context: Context, nome: String?): File? = nome?.let { arquivo(context, it) }
+
     fun novoArquivo(context: Context): File =
-        File(pasta(context), "secao_${System.currentTimeMillis()}.jpg")
+        File(pasta(context), "foto_${System.currentTimeMillis()}.jpg")
+
+    /** Copia uma imagem da galeria para a pasta do app (já reduzida). Devolve null se não for uma imagem. */
+    fun importar(context: Context, origem: Uri): File? {
+        val destino = novoArquivo(context)
+        return runCatching {
+            context.contentResolver.openInputStream(origem)!!.use { entrada ->
+                destino.outputStream().use { entrada.copyTo(it) }
+            }
+            checkNotNull(carregar(destino, 64))
+            reduzir(destino)
+            destino
+        }.getOrElse {
+            destino.delete()
+            null
+        }
+    }
 
     fun uri(context: Context, arquivo: File): Uri =
         FileProvider.getUriForFile(context, "${context.packageName}.fotos", arquivo)

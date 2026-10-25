@@ -14,14 +14,18 @@ rodando a loja procurando um produto.
 - 📷 **Leitor de código de barras** (EAN-13, EAN-8, UPC, Code 128, Code 39, ITF, QR)
 - 🔎 **Busca** por código de barras, código interno ou nome
 - 🗺️ **Seções com foto**: cada gôndola tem uma foto, e cada produto tem um marcador nela
+- 🖼️ **Fotos pela câmera ou pela galeria**, das seções e também de cada produto
+- ➕ **Quantas prateleiras a gôndola tiver**: o botão + adiciona mais
 - ⚡ **Modo mapeamento**: escolha a prateleira e vá bipando os produtos um atrás do outro
+- 🏷️ **Lista de troca de etiquetas**: bipe os produtos que mudaram de preço e siga a lista na ordem do caminho pela loja
+- 📄 **Importar planilha** (CSV) com código de barras, código interno e nome dos produtos
 - 💾 **Backup e restauração** em `.zip` (dados + fotos)
 - 📴 **Funciona sem internet**: tudo fica salvo no próprio celular
-- 🌙 Tema escuro
+- 👋 Boas-vindas na primeira vez que o app abre e tema escuro com ícones próprios
 
 ## Instalar
 
-Baixe o APK na página de *Releases*, ou gere o seu (veja abaixo). Mande o arquivo para
+Baixe o APK na página de [Releases](https://github.com/Renan2010p/mapaloja/releases), ou gere o seu (veja abaixo). Mande o arquivo para
 o celular e abra. O Android vai pedir para permitir "instalar apps desconhecidos".
 
 Na primeira vez que for bipar, o celular precisa de internet para o Google Play
@@ -33,7 +37,11 @@ Services baixar o leitor de código de barras.
 2. Dentro da seção, escolha a **prateleira** (1 = a mais alta) e toque em **Bipar produtos**.
 3. Para marcar o ponto exato, toque no produto na lista e depois toque na foto.
 4. No dia a dia, use **Bipar produto** na tela inicial para ver onde o produto está.
-5. Faça **backup** com frequência: menu ⋮ → *Salvar backup*.
+5. Para trocar etiquetas, toque em **Trocar etiquetas**, bipe os produtos e vá marcando conforme troca.
+6. Faça **backup** com frequência: menu ⋮ → *Salvar backup*.
+
+A planilha para importar (menu ⋮ → *Importar planilha*) não precisa de um formato fixo:
+em cada linha, o app reconhece o código de barras (8 a 14 dígitos), o nome e o código interno.
 
 ## Compilar
 
@@ -59,9 +67,12 @@ O projeto é dividido em módulos Gradle:
 | `app`              | `MainActivity` e a navegação que junta as telas                   |
 | `core:data`        | Banco de dados (Room), fotos e backup                             |
 | `core:ui`          | Tema, componentes reutilizáveis, leitor de código, rotas de navegação |
+| `feature:inicio`   | Boas-vindas e configuração inicial                                |
 | `feature:busca`    | Tela inicial e busca                                              |
+| `feature:etiquetas`| Lista de troca de etiquetas                                       |
 | `feature:produto`  | Tela "Onde está" e cadastro de produto                            |
 | `feature:secao`    | Lista de seções, modo mapeamento e cadastro de seção              |
+| `feature:sobre`    | Créditos, licença e versão                                        |
 | `build-logic`      | Configuração de Gradle compartilhada entre os módulos             |
 
 Os módulos `feature:*` só dependem dos módulos `core:*`, nunca uns dos outros.
@@ -72,11 +83,28 @@ As versões das bibliotecas ficam em [`gradle/libs.versions.toml`](gradle/libs.v
 Tecnologias: Kotlin, Jetpack Compose (Material 3), Room, Navigation Compose
 e Google Code Scanner (ML Kit).
 
+## Lançar uma versão
+
+Envie uma tag `v*`. O workflow [`release.yml`](.github/workflows/release.yml) compila o APK,
+assina e cria a Release:
+
+```bash
+git tag v1.2.0 && git push origin v1.2.0
+```
+
+Para o APK sair assinado com a chave do projeto, cadastre os Secrets `KEYSTORE_BASE64`,
+`KEYSTORE_PASSWORD`, `KEY_ALIAS` e `KEY_PASSWORD` em *Settings → Secrets and variables → Actions*.
+Sem eles, o APK sai assinado com uma chave de debug.
+
 ## Privacidade
 
 O app não tem servidor, conta nem rastreamento. Os dados e as fotos ficam só no
 celular, até você mesmo exportar um backup. **Não publique backups**: eles podem
 conter fotos e informações internas da loja.
+
+## Créditos
+
+Feito pelo Claude e Renan Lucas Vieira Hilário.
 
 ## Licença
 

@@ -5,6 +5,7 @@ package com.renan.mapaloja.core.ui.tema
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -38,6 +39,8 @@ fun TemaMapa(conteudo: @Composable () -> Unit) {
             medium = RoundedCornerShape(18.dp),
             large = RoundedCornerShape(24.dp),
         ),
-        content = conteudo,
-    )
+    ) {
+        // Superfície de fundo: garante texto claro em qualquer tela, mesmo sem Scaffold
+        Surface(color = MaterialTheme.colorScheme.background, content = conteudo)
+    }
 }

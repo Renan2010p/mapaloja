@@ -33,6 +33,22 @@ interface ProdutoDao {
     @Query("SELECT COUNT(*) FROM produto")
     fun contar(): Flow<Int>
 
+    /** Etiquetas a trocar, na ordem do caminho pela loja (seção, prateleira). */
+    @Query(
+        "$SELECT_LOCAL WHERE p.trocarEtiqueta = 1 " +
+            "ORDER BY s.id IS NULL, s.localizacao COLLATE NOCASE, s.nome COLLATE NOCASE, p.prateleira, p.nome COLLATE NOCASE"
+    )
+    fun paraTrocarEtiqueta(): Flow<List<ProdutoLocal>>
+
+    @Query("SELECT COUNT(*) FROM produto WHERE trocarEtiqueta = 1")
+    fun contarEtiquetas(): Flow<Int>
+
+    @Query("UPDATE produto SET trocarEtiqueta = :trocar WHERE id = :id")
+    suspend fun marcarEtiqueta(id: Long, trocar: Boolean)
+
+    @Query("UPDATE produto SET trocarEtiqueta = 0")
+    suspend fun limparEtiquetas()
+
     @Query("SELECT * FROM produto WHERE codigoBarras = :ean LIMIT 1")
     suspend fun porEan(ean: String): Produto?
 

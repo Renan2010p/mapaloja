@@ -1,0 +1,173 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "29bf42f85cb952fcf07b9eb3404a1b6a",
+    "entities": [
+      {
+        "tableName": "secao",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nome` TEXT NOT NULL, `localizacao` TEXT NOT NULL, `fotoPath` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nome",
+            "columnName": "nome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localizacao",
+            "columnName": "localizacao",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fotoPath",
+            "columnName": "fotoPath",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "produto",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `codigoBarras` TEXT, `codigoInterno` TEXT, `nome` TEXT NOT NULL, `secaoId` INTEGER, `prateleira` INTEGER, `posX` REAL, `posY` REAL, `observacao` TEXT NOT NULL, `atualizadoEm` INTEGER NOT NULL, `trocarEtiqueta` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`secaoId`) REFERENCES `secao`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "codigoBarras",
+            "columnName": "codigoBarras",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "codigoInterno",
+            "columnName": "codigoInterno",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "nome",
+            "columnName": "nome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "secaoId",
+            "columnName": "secaoId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "prateleira",
+            "columnName": "prateleira",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "posX",
+            "columnName": "posX",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "posY",
+            "columnName": "posY",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "observacao",
+            "columnName": "observacao",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "atualizadoEm",
+            "columnName": "atualizadoEm",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trocarEtiqueta",
+            "columnName": "trocarEtiqueta",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_produto_codigoBarras",
+            "unique": true,
+            "columnNames": [
+              "codigoBarras"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_produto_codigoBarras` ON `${TABLE_NAME}` (`codigoBarras`)"
+          },
+          {
+            "name": "index_produto_codigoInterno",
+            "unique": false,
+            "columnNames": [
+              "codigoInterno"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_produto_codigoInterno` ON `${TABLE_NAME}` (`codigoInterno`)"
+          },
+          {
+            "name": "index_produto_secaoId",
+            "unique": false,
+            "columnNames": [
+              "secaoId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_produto_secaoId` ON `${TABLE_NAME}` (`secaoId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "secao",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "secaoId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '29bf42f85cb952fcf07b9eb3404a1b6a')"
+    ]
+  }
+}

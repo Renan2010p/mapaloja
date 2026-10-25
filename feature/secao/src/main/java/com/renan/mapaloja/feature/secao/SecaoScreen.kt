@@ -38,7 +38,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,10 +49,14 @@ import com.renan.mapaloja.core.data.db.AppDatabase
 import com.renan.mapaloja.core.data.fotos.Fotos
 import com.renan.mapaloja.core.data.model.Produto
 import com.renan.mapaloja.core.data.model.normalizarCodigo
+import com.renan.mapaloja.core.ui.componentes.ConteudoBotao
 import com.renan.mapaloja.core.ui.componentes.FotoComMarcadores
 import com.renan.mapaloja.core.ui.componentes.Marcador
+import com.renan.mapaloja.core.ui.componentes.MensagemBipe
+import com.renan.mapaloja.core.ui.componentes.Miniatura
 import com.renan.mapaloja.core.ui.componentes.SeletorPrateleira
 import com.renan.mapaloja.core.ui.componentes.TelaBase
+import com.renan.mapaloja.core.ui.icones.IconesMapa
 import com.renan.mapaloja.core.ui.leitor.lerCodigo
 import com.renan.mapaloja.core.ui.navegacao.Rotas
 import kotlinx.coroutines.launch
@@ -61,6 +67,7 @@ internal fun SecaoScreen(nav: NavController, id: Long) {
     val ctx = LocalContext.current
     val db = remember { AppDatabase.get(ctx) }
     val scope = rememberCoroutineScope()
+    val vibrar = LocalHapticFeedback.current
     val secao by remember { db.secoes().observar(id) }.collectAsStateWithLifecycle(null)
     val produtos by remember { db.produtos().daSecao(id) }.collectAsStateWithLifecycle(emptyList())
 
@@ -96,7 +103,8 @@ internal fun SecaoScreen(nav: NavController, id: Long) {
                     }
                     else -> {
                         db.produtos().atualizar(colocarAqui(existente))
-                        ultimo = "✔ ${existente.titulo()} → prateleira $prateleira"
+                        vibrar.performHapticFeedback(HapticFeedbackType.LongPress)
+                        ultimo = "${existente.titulo()} → prateleira $prateleira"
                         if (emSequencia) bipar()
                     }
                 }
@@ -134,19 +142,28 @@ internal fun SecaoScreen(nav: NavController, id: Long) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("Mapear produtos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text("Prateleira atual (1 = a mais alta):")
-                        SeletorPrateleira(prateleira, { if (it != null) prateleira = it })
+                        SeletorPrateleira(
+                            valor = prateleira,
+                            onMudar = { if (it != null) prateleira = it },
+                            quantidade = s.prateleiras,
+                            onAdicionar = {
+                                val nova = s.prateleiras + 1
+                                scope.launch { db.secoes().atualizar(s.copy(prateleiras = nova)) }
+                                prateleira = nova
+                            },
+                        )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Switch(checked = emSequencia, onCheckedChange = { emSequencia = it })
                             Spacer(Modifier.width(8.dp))
                             Text("Bipar um atrás do outro")
                         }
                         Button(onClick = { bipar() }, Modifier.fillMaxWidth().height(64.dp)) {
-                            Text("📷  Bipar produtos na prateleira $prateleira", style = MaterialTheme.typography.titleMedium)
+                            ConteudoBotao(IconesMapa.Bipar, "Bipar na prateleira $prateleira", MaterialTheme.typography.titleMedium)
                         }
                         TextButton(onClick = { nav.navigate(Rotas.produtoEditar(secao = id)) }) {
                             Text("Adicionar produto sem código de barras")
                         }
-                        ultimo?.let { Text(it, fontWeight = FontWeight.SemiBold) }
+                        ultimo?.let { MensagemBipe(it) }
                     }
                 }
             }
@@ -166,6 +183,7 @@ internal fun SecaoScreen(nav: NavController, id: Long) {
                 items(lista, key = { it.id }) { p ->
                     ListItem(
                         modifier = Modifier.clickable { nav.navigate(Rotas.produtoEditar(p.id)) },
+                        leadingContent = p.fotoPath?.let { foto -> { Miniatura(Fotos.arquivo(ctx, foto), 48.dp) } },
                         headlineContent = { Text(p.titulo()) },
                         supportingContent = {
                             Text(
@@ -207,7 +225,8 @@ internal fun SecaoScreen(nav: NavController, id: Long) {
                             prateleira = prateleira,
                         )
                         db.produtos().inserir(novo)
-                        ultimo = "✔ ${novo.titulo()} cadastrado na prateleira $prateleira"
+                        vibrar.performHapticFeedback(HapticFeedbackType.LongPress)
+                        ultimo = "${novo.titulo()} cadastrado na prateleira $prateleira"
                         if (emSequencia) bipar()
                     }
                 }) { Text("Salvar") }
@@ -226,7 +245,8 @@ internal fun SecaoScreen(nav: NavController, id: Long) {
                     mover = null
                     scope.launch {
                         db.produtos().atualizar(colocarAqui(p))
-                        ultimo = "✔ ${p.titulo()} mudou para prateleira $prateleira"
+                        vibrar.performHapticFeedback(HapticFeedbackType.LongPress)
+                        ultimo = "${p.titulo()} mudou para prateleira $prateleira"
                         if (emSequencia) bipar()
                     }
                 }) { Text("Mudar") }

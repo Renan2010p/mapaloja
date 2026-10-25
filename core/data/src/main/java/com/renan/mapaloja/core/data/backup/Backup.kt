@@ -28,7 +28,7 @@ object Backup {
     suspend fun exportar(context: Context, destino: Uri) = withContext(Dispatchers.IO) {
         val db = AppDatabase.get(context)
         val json = JSONObject()
-            .put("versao", 1)
+            .put("versao", 3)
             .put("secoes", JSONArray().apply {
                 db.secoes().todas().forEach {
                     put(
@@ -37,6 +37,7 @@ object Backup {
                             .put("nome", it.nome)
                             .put("localizacao", it.localizacao)
                             .put("foto", it.fotoPath ?: JSONObject.NULL)
+                            .put("prateleiras", it.prateleiras)
                     )
                 }
             })
@@ -54,6 +55,8 @@ object Backup {
                             .put("posY", it.posY?.toDouble() ?: JSONObject.NULL)
                             .put("observacao", it.observacao)
                             .put("atualizadoEm", it.atualizadoEm)
+                            .put("trocarEtiqueta", it.trocarEtiqueta)
+                            .put("foto", it.fotoPath ?: JSONObject.NULL)
                     )
                 }
             })
@@ -98,6 +101,7 @@ object Backup {
                 nome = it.getString("nome"),
                 localizacao = it.optString("localizacao"),
                 fotoPath = it.textoOuNulo("foto"),
+                prateleiras = it.optInt("prateleiras", 5),
             )
         }
         val produtos = json.getJSONArray("produtos").objetos().map {
@@ -112,6 +116,8 @@ object Backup {
                 posY = if (it.isNull("posY")) null else it.getDouble("posY").toFloat(),
                 observacao = it.optString("observacao"),
                 atualizadoEm = it.optLong("atualizadoEm", System.currentTimeMillis()),
+                trocarEtiqueta = it.optBoolean("trocarEtiqueta", false),
+                fotoPath = if (it.has("foto")) it.textoOuNulo("foto") else null,
             )
         }
 
